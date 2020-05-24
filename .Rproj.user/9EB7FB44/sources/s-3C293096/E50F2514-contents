@@ -1,0 +1,186 @@
+---
+title: "Calculating DLI"
+output: html_document
+---
+Based on: https://www.houseplantjournal.com/home/2019/11/7/dli-part-2-measuring-dli-at-home 
+
+**Method**
+
+This is essentially what we're doing:
+
+- Measure the light intensity (in foot-candles or PPFD) at regular intervals throughout the day (traditionally measured every hour)
+
+- Convert foot-candles to PPFD (if necessary: you won’t need to do this if you already measured PPFD using a PAR meter)
+
+- Calculate DLI from daily average PPFD
+
+
+Inputting the measurements
+
+
+```{r measurements, include=FALSE}
+library(tidyverse)
+library(magrittr)
+
+hours <- seq(9, 19, by = 1)
+
+#### OFFICE WINDOW ####
+officewindow_measurements_wed <- c(NA, 116, 191, 230, 185, 158, 277, 137, 170, 56, 125)
+
+officewindow_measurements_thu <- c(NA, 235, NA, 101, 102, NA, 100, NA, 96, 102, 84)
+
+office_window <- tibble(hours, 
+                        officewindow_measurements_wed, 
+                        officewindow_measurements_thu)
+
+#### OFFICE ABOVE MONITOR ####
+
+officemonitor_wed <- c(NA, 40, 35, 64, 52, 38, 56, 38, 48, 12, 39)
+
+officemonitor_thus <- c(NA, 50, NA, 28, 27, NA, NA, 32, 37, 37, 32)
+
+office_monitor <- tibble(hours, 
+                         officemonitor_wed, 
+                         officemonitor_thus)
+
+#### KITCHEN FERNS ####
+
+kitchenfern_wed <- c(NA, 7, 12, 10, 32, 23, 46, 72, 65, 8, 33)
+
+kitchenfern_thu <- c(NA, 14, NA, 37, 50, NA, NA, 75, 71, 63, 41)
+
+kitchen_ferns <- tibble(hours, 
+                        kitchenfern_wed, 
+                        kitchenfern_thu)
+
+#### KITCHEN NEW TABLE ####
+
+kitchennewtable_wed <- c(NA, 16, 27, 53, 47, 55, 125, 124, 77, 19, 29)
+
+kitchennewtable_thu <- c(NA, 28, NA, 72, 92, NA, NA, 113, 110, 82, 61)
+
+kitchen_new_table <- tibble(hours, 
+                            kitchennewtable_wed, 
+                            kitchennewtable_thu)
+
+
+#### PILEA TABLE ####
+
+pilea_wed <- c(NA, 22, 67, 157, 197, 158, 260, 252, 230, 40, 184)
+
+pilea_thu <- c(NA, 67, NA, 149, 181, NA, NA, 261, 201, 196, 170)
+
+pilea_table <- tibble(hours, pilea_wed, pilea_thu)
+
+
+#### LIVING ROOM WINDOW ####
+
+livingrsill_wed <- c(NA, 157, 83, 300, 360, 306, 560, 580, 402, 77, 571)
+
+livingrsill_thu <- c(NA, 142, NA, 338, 432, NA, NA, 602, 514, 398, 590)
+
+living_room <- tibble(hours, 
+                      livingrsill_wed, 
+                      livingrsill_thu)
+
+```
+
+```{r create_long_data}
+
+create_long_data <- function(df){
+  out <- df %>%
+    gather(placement, fc, -hours)
+  
+  return(out)
+}
+
+living_room %<>% create_long_data()
+pilea_table %<>% create_long_data()
+office_window %<>% create_long_data()
+office_monitor %<>% create_long_data()
+kitchen_ferns %<>% create_long_data()
+kitchen_new_table  %<>% create_long_data()
+```
+
+
+```{r vis}
+
+one_long_data <- living_room %>%
+  union_all(pilea_table) %>%
+  union_all(office_window) %>%
+  union_all(office_monitor) %>%
+  union_all(kitchen_ferns) %>%
+  union_all(kitchen_new_table) %>%
+  mutate(measurement_day = stringr::str_sub(placement, - 3, - 1),
+         measurement_location = sub("_.*", "", placement))
+
+dd <- one_long_data %>%
+  group_by(measurement_location) %>%
+  summarise(beep = mean(fc, na.rm = T))
+
+p <- one_long_data %>%
+  na.omit() %>%
+  ggplot(aes(x = hours, 
+                 y = fc,
+                 group = measurement_location)) +
+  geom_point() +
+  geom_smooth() +
+  geom_hline(data = dd,
+             aes(yintercept = beep)) +
+  facet_grid(.~measurement_location) +
+  theme_bw() +
+  labs(x = "Time of day",
+       y = "Foot candles")
+
+p
+
+ggsave("May 2020 plot.png", p)
+
+write_csv(one_long_data, "may_2020_light_recording.csv")
+
+```
+
+
+```{r calc}
+
+# flawed calculation
+one_long_data %>%
+  group_by(measurement_location) %>%
+  summarise(avg_fc = mean(fc, na.rm = T)) %>%
+  mutate(ppdf = avg_fc * 0.2,
+         dli_per_day = ppdf*0.0864) %>%
+  select(measurement_location, avg_fc, dli_per_day)
+
+
+proper_integral_calc <- function(df){
+  out <- tibble(place = "0", dli = 0)
+  
+  for(m in unique(df$measurement_location)){
+    list_of_ppfd <- df %>%
+      na.omit() %>%
+      mutate(ppfd = fc * 0.2) %>%
+      filter(measurement_location == m) %>%
+      arrange(hours) %>%
+      group_by(hours) %>%
+      summarise(avg_ppfd = mean(ppfd, na.rm = T)) %>%
+      pull(avg_ppfd) * 1E-6
+    
+    result <- 3600 / 2 * (list_of_ppfd[1] + list_of_ppfd[length(list_of_ppfd)] + 2 * sum(list_of_ppfd[2:length(list_of_ppfd)-1]))
+    
+    out <- add_row(out, 
+                   place = paste(m),
+                   dli = result)
+    
+    # AUC(seq(1:10)*3600,
+    #   fc_pilea)
+
+  }
+  return(out)
+}
+
+proper_integral_calc(one_long_data)
+
+```
+
+
+

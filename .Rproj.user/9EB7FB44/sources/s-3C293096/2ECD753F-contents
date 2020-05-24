@@ -1,0 +1,9 @@
+Method
+
+This is essentially what we're doing:
+
+Measure the light intensity (in foot-candles or PPFD) at regular intervals throughout the day (traditionally measured every hour)
+
+Convert foot-candles to PPFD (if necessary: you won’t need to do this if you already measured PPFD using a PAR meter)
+
+Calculate DLI from daily average PPFD

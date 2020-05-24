@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1590322123223.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "D1139A37",
+    "lastKnownWriteTime" : 4482212218,
+    "last_content_update" : 1590322123223,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "81ED27B3",
+        "caption" : "office_monitor",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=office_monitor&cache_key=81ED27B3",
+        "displayedObservations" : 19,
+        "environment" : "",
+        "expression" : "office_monitor",
+        "object" : "office_monitor",
+        "preview" : 0,
+        "totalObservations" : 19,
+        "variables" : 3
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
